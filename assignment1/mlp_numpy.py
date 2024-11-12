@@ -52,7 +52,25 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        
+        self.layers = []
+        if n_hidden:
+            for i in range(len(n_hidden)):
+                if i==0:
+                    layer = LinearModule(n_inputs, n_hidden[i], input_layer=True)
+                else:
+                    layer = LinearModule(n_hidden[i-1], n_hidden[i])
+                
+                self.layers.append(layer)
+                self.layers.append(ELUModule(alpha=0.1))
+                
+            l_out = LinearModule(n_hidden[-1], n_classes)
+        else:
+            l_out = LinearModule(n_inputs, n_classes, input_layer=True)
+        self.layers.append(l_out)
+        
+        # self.elu = ELUModule(alpha=0.1)
+        self.softmax = SoftMaxModule() 
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -74,7 +92,11 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
+        for layer in self.layers:
+            x = layer.forward(x)
+            # x = self.elu.forward(x)
 
+        out = self.softmax.forward(x)
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -95,7 +117,13 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        dout = self.softmax.backward(dout)
+        # dout = self.layers[-1].backward(dout)
+        
+        for layer in reversed(self.layers):
+            # dout = self.elu.backward(dout)
+            dout = layer.backward(dout)
+           
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -112,7 +140,12 @@ class MLP(object):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        pass
+        for layer in self.layers:
+            layer.clear_cache()
+        
+        # self.elu.clear_cache()
+
+        self.softmax.clear_cache()
         #######################
         # END OF YOUR CODE    #
         #######################

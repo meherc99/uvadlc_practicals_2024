@@ -28,6 +28,7 @@ from copy import deepcopy
 from tqdm.auto import tqdm
 from mlp_pytorch import MLP
 import cifar10_utils
+from train_mlp_numpy import plot_logs
 
 import torch
 import torch.nn as nn
@@ -55,7 +56,11 @@ def accuracy(predictions, targets):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    # softmax = nn.Softmax(dim=1)
+    # predictions = softmax(predictions)
+    
+    accuracy = torch.mean((torch.argmax(predictions, dim=1) == torch.argmax(targets, dim=1)).float())
+    
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -83,7 +88,14 @@ def evaluate_model(model, data_loader):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    model_accuracy = list()
+    with torch.no_grad():
+        for (data, labels) in data_loader:   # Evaluating accuracy for every batch
+            data = data.reshape(data.shape[0], -1)
+            labels = torch.eye(10)[labels]    # One-hot encoding
+            model_accuracy.append(accuracy(model(data), labels))
+    
+    avg_accuracy = torch.mean(torch.tensor(model_accuracy))
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -144,22 +156,74 @@ def train(hidden_dims, lr, use_batch_norm, batch_size, epochs, seed, data_dir):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    best_model = None
+    best_val_accuracy = 0
+    val_accuracies = []
+    train_loss = []
+    
     # TODO: Initialize model and loss module
-    model = ...
-    loss_module = ...
+    
+    input_dim = 3 * 32 * 32
+    output_dim = 10
+    
+    model = MLP(input_dim, hidden_dims, output_dim, use_batch_norm)
+    
+    # print(model.device)
+    # model.to(device)
+    # print(model.device)  
+    
+    # for key, value in cifar10_loader.items():
+    #     cifar10_loader[key].to(device)
+
+    loss_module = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=lr)
+        
     # TODO: Training loop including validation
-    # TODO: Do optimization with the simple SGD optimizer
-    val_accuracies = ...
+    print('Training model...')
+    for epoch in tqdm(range(epochs)):
+        model.train()
+        batch_train_loss = []
+        # iterating over batches in dataset
+        for (data, labels) in cifar10_loader['train']:
+            data, labels = data.to(device), labels.to(device)
+            data = data.reshape(data.shape[0], -1)
+            optimizer.zero_grad()
+            # Forward pass
+            predictions = model(data)
+            loss = loss_module(predictions, labels)
+            batch_train_loss.append(loss.item())
+            
+            loss.backward()
+            optimizer.step()
+        
+        with torch.no_grad():
+            # TODO: Do optimization with the simple SGD optimizer
+            print('Validating model...')
+            model.eval()
+            curr_val_accuracies = evaluate_model(model, cifar10_loader['validation'])
+            val_accuracies.append(curr_val_accuracies)
+            print(curr_val_accuracies)
+            train_loss.append(np.mean(batch_train_loss))
+        
+        if curr_val_accuracies >= best_val_accuracy:
+            best_val_accuracy = curr_val_accuracies
+            best_model = deepcopy(model)
+    
     # TODO: Test best model
-    test_accuracy = ...
+    with torch.no_grad():
+        print('Testing best model...')
+        best_model.eval()
+        test_accuracy = evaluate_model(best_model, cifar10_loader['test'])
+        print(f'Test accuracy: {test_accuracy}')
+        
     # TODO: Add any information you might want to save for plotting
-    logging_dict = ...
+    logging_dict = {'train_loss': train_loss}
+    
     #######################
     # END OF YOUR CODE    #
     #######################
 
-    return model, val_accuracies, test_accuracy, logging_dict
+    return best_model, val_accuracies, test_accuracy, logging_dict
 
 
 if __name__ == '__main__':
@@ -189,5 +253,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     kwargs = vars(args)
 
-    train(**kwargs)
+    best_model, val_accuracies, test_accuracy, logging_dict = train(**kwargs)
+    
     # Feel free to add any additional functions, such as plotting of the loss curve here
+    best_model.eval()
+    plot_logs(np.array(val_accuracies), str(round(test_accuracy.item(),3)), logging_dict, save=True)
