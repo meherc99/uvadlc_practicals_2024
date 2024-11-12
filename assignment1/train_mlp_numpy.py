@@ -27,10 +27,12 @@ import os
 from tqdm.auto import tqdm
 from copy import deepcopy
 from mlp_numpy import MLP
-from modules import CrossEntropyModule
+from modules import CrossEntropyModule, SoftMaxModule
 import cifar10_utils
-
+import matplotlib.pyplot as plt
 import torch
+import seaborn as sns
+import datetime as dt
 
 
 def accuracy(predictions, targets):
@@ -53,7 +55,10 @@ def accuracy(predictions, targets):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    # softmax = SoftMaxModule()
+    # predictions = softmax.forward(predictions)
+    
+    accuracy = np.mean(np.argmax(predictions, axis=1) == targets)
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -81,7 +86,15 @@ def evaluate_model(model, data_loader):
     #######################
     # PUT YOUR CODE HERE  #
     #######################
-
+    model_accuracy = list()
+    batch_sizes = list()
+    for (data, labels) in data_loader:   # Evaluating accuracy for every batch
+        data = data.reshape(data.shape[0], -1)
+        print(data.shape[0])
+        batch_sizes.append(data.shape[0])
+        model_accuracy.append(accuracy(model.forward(data), labels))
+    
+    avg_accuracy = np.average(model_accuracy, weights=[0.2, 0.2, 0.2])  
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -134,20 +147,78 @@ def train(hidden_dims, lr, batch_size, epochs, seed, data_dir):
     # PUT YOUR CODE HERE  #
     #######################
 
+    best_model = None
+    best_val_accuracy = 0
+    val_accuracies = []
+    train_loss = []
+    
+    input_dim = 3 * 32 * 32
+    output_dim = 10
+    
     # TODO: Initialize model and loss module
-    model = ...
-    loss_module = ...
+    model = MLP(input_dim, hidden_dims, output_dim)
+    loss_module = CrossEntropyModule()
+    
     # TODO: Training loop including validation
-    val_accuracies = ...
+    print('Training model...')
+    for epoch in tqdm(range(epochs)):
+        model.clear_cache()
+        batch_train_loss = []
+        # iterating over batches in dataset
+        for (data, labels) in cifar10_loader['train']:
+            # data : (batch_size, 3, 32, 32)
+            data = data.reshape(data.shape[0], -1)
+            # Forward pass
+            predictions = model.forward(data)
+            # train_accuracy = accuracy(predictions, labels)
+            loss = loss_module.forward(predictions, labels)
+            batch_train_loss.append(loss)
+            # Backward pass
+            loss_grad = loss_module.backward(predictions, labels)
+            model.backward(loss_grad)
+            
+            # Updating weights using batch SGD
+            for layer in model.layers:
+                if hasattr(layer, 'params'):
+                    layer.params['weight'] -= lr * layer.grads['weight']
+                    layer.params['bias'] -= lr * layer.grads['bias']
+        train_loss.append(np.mean(batch_train_loss))
+         
+        curr_val_accuracies = evaluate_model(model, cifar10_loader['validation'])
+        val_accuracies.append(curr_val_accuracies)
+        print(curr_val_accuracies)
+        
+        if curr_val_accuracies >= best_val_accuracy:
+            best_val_accuracy = curr_val_accuracies
+            best_model = deepcopy(model)
+    
     # TODO: Test best model
-    test_accuracy = ...
+    test_accuracy = round(evaluate_model(best_model, cifar10_loader['test']), 3)
+    print(f'Test accuracy: {test_accuracy}')
+    
     # TODO: Add any information you might want to save for plotting
-    logging_dict = ...
+    logging_dict = {'train_loss': train_loss}
+    
     #######################
     # END OF YOUR CODE    #
     #######################
 
-    return model, val_accuracies, test_accuracy, logging_dict
+    return best_model, val_accuracies, test_accuracy, logging_dict
+
+def plot_logs(val_accuracies, test_accuracy, logging_dict, save=True):
+
+    sns.set_theme(style="darkgrid")
+    plt.figure(figsize=(10, 6))
+    epochs = range(1, len(val_accuracies) + 1)
+    sns.lineplot(x=epochs, y=val_accuracies, label='Validation Accuracy')
+    sns.lineplot(x=epochs, y=logging_dict['train_loss'], label='Training Loss')
+ 
+    plt.xlabel('Epochs')
+    plt.title(f'Train Loss & Validation Accuracy vs Epochs (Test accuracy: {test_accuracy})')
+    if save:
+        plt.savefig(f'artifacts/train_loss_val_accuracy {dt.datetime.now().strftime("%Y%m%d_%H%M")}.png')
+    
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -175,5 +246,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     kwargs = vars(args)
 
-    train(**kwargs)
+    best_model, val_accuracies, test_accuracy, logging_dict = train(**kwargs)
     # Feel free to add any additional functions, such as plotting of the loss curve here
+    
+    plot_logs(val_accuracies, test_accuracy, logging_dict, save=True)
