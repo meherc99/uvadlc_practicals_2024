@@ -68,8 +68,7 @@ class MLP(object):
         else:
             l_out = LinearModule(n_inputs, n_classes, input_layer=True)
         self.layers.append(l_out)
-        
-        # self.elu = ELUModule(alpha=0.1)
+  
         self.softmax = SoftMaxModule() 
         #######################
         # END OF YOUR CODE    #
@@ -94,7 +93,6 @@ class MLP(object):
         #######################
         for layer in self.layers:
             x = layer.forward(x)
-            # x = self.elu.forward(x)
 
         out = self.softmax.forward(x)
         #######################
@@ -118,10 +116,8 @@ class MLP(object):
         # PUT YOUR CODE HERE  #
         #######################
         dout = self.softmax.backward(dout)
-        # dout = self.layers[-1].backward(dout)
         
         for layer in reversed(self.layers):
-            # dout = self.elu.backward(dout)
             dout = layer.backward(dout)
            
         #######################
@@ -142,8 +138,6 @@ class MLP(object):
         #######################
         for layer in self.layers:
             layer.clear_cache()
-        
-        # self.elu.clear_cache()
 
         self.softmax.clear_cache()
         #######################

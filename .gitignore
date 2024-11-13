@@ -4,3 +4,4 @@
 */artifacts/*
 *.ipynb_checkpoints/*
 *.ipynb
+*.pdf

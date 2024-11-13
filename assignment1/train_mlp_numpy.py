@@ -90,11 +90,10 @@ def evaluate_model(model, data_loader):
     batch_sizes = list()
     for (data, labels) in data_loader:   # Evaluating accuracy for every batch
         data = data.reshape(data.shape[0], -1)
-        print(data.shape[0])
         batch_sizes.append(data.shape[0])
         model_accuracy.append(accuracy(model.forward(data), labels))
     
-    avg_accuracy = np.average(model_accuracy, weights=[0.2, 0.2, 0.2])  
+    avg_accuracy = np.average(model_accuracy, weights=batch_sizes)    # Weighted average of accuracies as not all batches are of same size (Especially last batch)
     #######################
     # END OF YOUR CODE    #
     #######################
@@ -216,6 +215,8 @@ def plot_logs(val_accuracies, test_accuracy, logging_dict, save=True):
     plt.xlabel('Epochs')
     plt.title(f'Train Loss & Validation Accuracy vs Epochs (Test accuracy: {test_accuracy})')
     if save:
+        if not os.path.exists('artifacts'):
+            os.makedirs('artifacts')
         plt.savefig(f'artifacts/train_loss_val_accuracy {dt.datetime.now().strftime("%Y%m%d_%H%M")}.png')
     
     plt.show()
