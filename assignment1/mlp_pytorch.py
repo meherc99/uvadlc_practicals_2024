@@ -73,10 +73,11 @@ class MLP(nn.Module):
                 nn.init.kaiming_normal_(layer.weight, mode='fan_in', nonlinearity='relu')
                 self.layers.append(layer)
                 
+                self.layers.append(nn.ELU())
+
                 if use_batch_norm:
                     self.layers.append(nn.BatchNorm1d(n_hidden[i]))
                 
-                self.layers.append(nn.ELU())
             
             # Output layer
             l_out = nn.Linear(n_hidden[-1], n_classes)
@@ -109,10 +110,7 @@ class MLP(nn.Module):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        for layer in self.layers:
-            x = layer(x)
-        
-        out = x
+        out = self.layers(x)
         #######################
         # END OF YOUR CODE    #
         #######################

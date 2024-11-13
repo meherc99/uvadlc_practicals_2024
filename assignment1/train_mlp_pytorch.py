@@ -166,15 +166,10 @@ def train(hidden_dims, lr, use_batch_norm, batch_size, epochs, seed, data_dir):
     input_dim = 3 * 32 * 32
     output_dim = 10
     
-    model = MLP(input_dim, hidden_dims, output_dim, use_batch_norm)
-    
-    # print(model.device)
-    # model.to(device)
-    # print(model.device)  
-    
-    # for key, value in cifar10_loader.items():
-    #     cifar10_loader[key].to(device)
+    model = MLP(input_dim, hidden_dims, output_dim, use_batch_norm)    
 
+    model.to(device)
+    
     loss_module = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=lr)
         
