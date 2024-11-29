@@ -190,7 +190,7 @@ def train(args):
     # Initialize a pytorch-lightning trainer
     trainer = pl.Trainer(
         logger=logger,
-        callbacks=[save_callback, lr_callback],
+        callbacks=[save_callback, lr_callback],  
         max_epochs=args.num_epochs,
         accelerator=args.device,
         enable_progress_bar=args.progress_bar,
