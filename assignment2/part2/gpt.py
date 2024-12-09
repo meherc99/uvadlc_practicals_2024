@@ -422,6 +422,8 @@ class GPT(nn.Module):
         # apply dropout to the tokens
         tok_emb = self.transformer.w_token_emb(idx) # shape (b, t, n_embd)
         tok_emb = self.transformer.drop(tok_emb)
+        tok_emb = self.transformer.w_token_emb(idx) # shape (b, t, n_embd)
+        tok_emb = self.transformer.drop(tok_emb)
 
         if self.config.abs_emb:
             pos = torch.arange(0, t, dtype=torch.long, device=device).unsqueeze(0) # shape (1, t)
@@ -515,6 +517,7 @@ class GPT(nn.Module):
                 idx_next = torch.multinomial(probs, num_samples=1) # shape (batch_size, 1)
             
             # append sampled index to the running sequence and continue
+            idx = torch.cat((idx, idx_next), dim=-1) # shape (batch_size, sequence_length + 1)
             idx = torch.cat((idx, idx_next), dim=-1) # shape (batch_size, sequence_length + 1)
 
         return idx
