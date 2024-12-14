@@ -39,7 +39,7 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     epsilon = defense_args[EPSILON]
     inputs.requires_grad = True
     # Implement the FGSM attack
-    adv_imgs = inputs.clone().detach().to(model.device).requires_grad_(True)
+    adv_imgs = inputs.clone().detach().requires_grad_(True)
     
     # Calculate the loss for the original image
     preds = model(adv_imgs)
@@ -55,7 +55,7 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     adv_preds = model(adv_imgs)
     
     adv_loss = loss = criterion(adv_preds, labels)
-    adv_loss.backward()
+    # adv_loss.backward()
     
     # Combine the two losses
     combined_loss = (1 - alpha) * loss + alpha * adv_loss
