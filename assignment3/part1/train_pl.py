@@ -72,11 +72,9 @@ class VAE(pl.LightningModule):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        # print(imgs.shape)
         
         mean, log_std = self.encoder(imgs)
-        print(mean.shape, log_std.shape)
-        print(log_std)
+
         z = sample_reparameterize(mean, torch.exp(log_std))
         reconstructed_imgs = self.decoder(z)
         

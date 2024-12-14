@@ -79,20 +79,24 @@ def pgd_attack(model, data, target, criterion, args):
 
     # Implement the PGD attack
     # Start with a copy of the data
-    orig_data = data.clone().detach()
-    adv_data = orig_data.clone().detach().requires_grad_(True)
+    orig_data = data.clone().detach().to(data.device)
+    adv_data = data.clone().detach().to(data.device).requires_grad_(True)
     # Then iteratively perturb the data in the direction of the gradient
     # Hint: to make sure to each time get a new detached copy of the data,
     # to avoid accumulating gradients from previous iterations
     # Hint: it can be useful to use toch.nograd()
    
     for _ in range(num_iter):
+        adv_data.requires_grad_(True)
         preds = model(adv_data)        
         loss = criterion(preds, target)
+        
+        model.zero_grad()
         loss.backward()
         
-        with torch.nograd():
+        with torch.no_grad():
             adv_data = fgsm_attack(adv_data, adv_data.grad.data, alpha)
+            
             # Make sure to clamp the perturbation to the epsilon ball around the original data
             perturbations = torch.clamp(adv_data - orig_data, min=-epsilon, max=epsilon)
             adv_data = torch.clamp(orig_data + perturbations, min=0, max=1)
