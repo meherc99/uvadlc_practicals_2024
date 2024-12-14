@@ -7,3 +7,5 @@
 *.ipynb
 *.pdf
 *.pth
+**/VAE_logs/**
+*.ckpt
