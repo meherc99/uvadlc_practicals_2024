@@ -45,6 +45,7 @@ class VAE(pl.LightningModule):
 
         self.encoder = CNNEncoder(z_dim=z_dim, num_filters=num_filters)
         self.decoder = CNNDecoder(z_dim=z_dim, num_filters=num_filters)
+        self.lr = lr
 
     def forward(self, imgs):
         """
@@ -70,10 +71,16 @@ class VAE(pl.LightningModule):
         #######################
         # PUT YOUR CODE HERE  #
         #######################
-        L_rec = None
-        L_reg = None
-        bpd = None
-        raise NotImplementedError
+        # print(imgs.shape)
+        
+        mean, log_std = self.encoder(imgs)
+        z = sample_reparameterize(mean, log_std)
+        reconstructed_imgs = self.decoder(z)
+        
+        L_rec = F.cross_entropy(reconstructed_imgs, imgs.squeeze(dim=1), reduction='sum') /imgs.shape[0] # Reconstruction loss
+        L_reg = KLD(mean, log_std).mean()  # Regularization loss
+        bpd = elbo_to_bpd(L_rec + L_reg, imgs.shape)  # Bits per dimension
+        
         #######################
         # END OF YOUR CODE    #
         #######################
@@ -90,9 +97,8 @@ class VAE(pl.LightningModule):
         """
         #######################
         # PUT YOUR CODE HERE  #
-        #######################
-        x_samples = None
-        raise NotImplementedError
+        ####################### 
+        x_samples = self.decoder(torch.randn(batch_size, self.hparams.z_dim).to(self.device))
         #######################
         # END OF YOUR CODE    #
         #######################
