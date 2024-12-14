@@ -30,9 +30,8 @@ def fgsm_attack(image, data_grad, epsilon = 0.25):
     # Get the sign of the data gradient (element-wise)
     # Create the perturbed image, scaled by epsilon
     # Make sure values stay within valid range
-    raise NotImplementedError()
+    perturbed_image = image + epsilon * data_grad.sign()
     return perturbed_image
-
 
     
 def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = True):
@@ -40,18 +39,37 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     epsilon = defense_args[EPSILON]
     inputs.requires_grad = True
     # Implement the FGSM attack
+    inp_imgs = inputs.clone().requires_grad_()
+    
     # Calculate the loss for the original image
+    preds = model(inp_imgs)
+    preds = F.log_softmax(preds, dim=-1)
+    original_outputs = preds.clone().detach()
+
+    loss = -torch.gather(preds, 1, labels.unsqueeze(dim=-1))
+    loss.sum().backward()
+    
+    perturbed_imgs = fgsm_attack(inp_imgs, inp_imgs.grad, epsilon)
+    
     # Calculate the perturbation
+    perturbation = perturbed_imgs - inputs
     # Calculate the loss for the perturbed image
+    adv_preds = model(perturbed_imgs)
+    adv_preds = F.log_softmax(adv_preds, dim=-1)
+    
+    adv_loss = -torch.gather(adv_preds, 1, labels.unsqueeze(dim=-1))
+    adv_loss.sum().backward()
+    
     # Combine the two losses
+    combined_loss = (1 - alpha) * loss + alpha * adv_loss
     # Hint: the inputs are used in two different forward passes,
     # so you need to make sure those don't clash
-    raise NotImplementedError()
+    
     if return_preds:
         _, preds = torch.max(original_outputs, 1)
-        return loss, preds
+        return combined_loss, preds
     else:
-        return loss
+        return combined_loss
 
 
 def pgd_attack(model, data, target, criterion, args):
@@ -61,12 +79,26 @@ def pgd_attack(model, data, target, criterion, args):
 
     # Implement the PGD attack
     # Start with a copy of the data
+    orig_data = data.clone().detach()
+    adv_data = orig_data.clone().detach().requires_grad_(True)
     # Then iteratively perturb the data in the direction of the gradient
-    # Make sure to clamp the perturbation to the epsilon ball around the original data
     # Hint: to make sure to each time get a new detached copy of the data,
     # to avoid accumulating gradients from previous iterations
     # Hint: it can be useful to use toch.nograd()
-    raise NotImplementedError()     
+   
+    for _ in range(num_iter):
+        preds = model(adv_data)        
+        loss = criterion(preds, target)
+        loss.backward()
+        
+        with torch.nograd():
+            adv_data = fgsm_attack(adv_data, adv_data.grad.data, alpha)
+            # Make sure to clamp the perturbation to the epsilon ball around the original data
+            perturbations = torch.clamp(adv_data - orig_data, min=-epsilon, max=epsilon)
+            adv_data = torch.clamp(orig_data + perturbations, min=0, max=1)
+    
+    adv_data = adv_data.detach()   
+    perturbed_data = adv_data
     return perturbed_data
 
 
@@ -92,15 +124,17 @@ def test_attack(model, test_loader, attack_function, attack_args):
             # Get the correct gradients wrt the data
             # Perturb the data using the FGSM attack
             # Re-classify the perturbed image
-            raise NotImplementedError()
-
+            loss.backward()
+            data_denorm = denormalize(data)
+            perturbed_data = fgsm_attack(data_denorm, data.grad.data, epsilon = attack_args[EPSILON]) 
         elif attack_function == PGD:
             # Get the perturbed data using the PGD attack
             # Re-classify the perturbed image
-            raise NotImplementedError()
+            perturbed_data = pgd_attack(model, data, target, criterion, attack_args)
         else:
             print(f"Unknown attack {attack_function}")
 
+        output = model(perturbed_data)
         # Check for success
         final_pred = output.max(1, keepdim=True)[1] 
         if final_pred.item() == target.item():
