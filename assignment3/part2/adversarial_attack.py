@@ -39,26 +39,23 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     epsilon = defense_args[EPSILON]
     inputs.requires_grad = True
     # Implement the FGSM attack
-    inp_imgs = inputs.clone().requires_grad_()
+    adv_imgs = inputs.clone().detach().to(model.device).requires_grad_(True)
     
     # Calculate the loss for the original image
-    preds = model(inp_imgs)
-    preds = F.log_softmax(preds, dim=-1)
-    original_outputs = preds.clone().detach()
+    preds = model(adv_imgs)
+    loss = criterion(preds, labels)
 
-    loss = -torch.gather(preds, 1, labels.unsqueeze(dim=-1))
-    loss.sum().backward()
-    
-    perturbed_imgs = fgsm_attack(inp_imgs, inp_imgs.grad, epsilon)
+    # model.zero_grad()
+    loss.backward()
+
+    adv_imgs = fgsm_attack(adv_imgs, adv_imgs.grad.data, epsilon)
     
     # Calculate the perturbation
-    perturbation = perturbed_imgs - inputs
     # Calculate the loss for the perturbed image
-    adv_preds = model(perturbed_imgs)
-    adv_preds = F.log_softmax(adv_preds, dim=-1)
+    adv_preds = model(adv_imgs)
     
-    adv_loss = -torch.gather(adv_preds, 1, labels.unsqueeze(dim=-1))
-    adv_loss.sum().backward()
+    adv_loss = loss = criterion(adv_preds, labels)
+    adv_loss.backward()
     
     # Combine the two losses
     combined_loss = (1 - alpha) * loss + alpha * adv_loss
@@ -66,7 +63,7 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     # so you need to make sure those don't clash
     
     if return_preds:
-        _, preds = torch.max(original_outputs, 1)
+        _, preds = torch.max(preds, 1)
         return combined_loss, preds
     else:
         return combined_loss
