@@ -45,8 +45,8 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     adv_imgs = inputs.clone().detach().requires_grad_(True)
     
     # Calculate the loss for the original image
-    orig_preds = model(orig_imgs)
-    orig_loss = criterion(orig_preds, labels)
+    preds = model(orig_imgs)
+    orig_loss = criterion(preds, labels)
 
     orig_loss.backward(retain_graph=True)
 
@@ -55,7 +55,7 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     
     # Calculate the perturbation
     # Calculate the loss for the perturbed image
-    adv_preds = model(adv_imgs.detach)
+    adv_preds = model(adv_imgs.detach())
     adv_loss = criterion(adv_preds, labels)
     # adv_loss.backward()
     
