@@ -30,7 +30,7 @@ def fgsm_attack(image, data_grad, epsilon = 0.25):
     # Get the sign of the data gradient (element-wise)
     # Create the perturbed image, scaled by epsilon
     # Make sure values stay within valid range
-    perturbed_image = image + epsilon * data_grad.sign()
+    perturbed_image = torch.clamp(image + epsilon * data_grad.sign(), 0, 1)
     return perturbed_image
 
     
@@ -38,29 +38,30 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     alpha = defense_args[ALPHA]
     epsilon = defense_args[EPSILON]
     inputs.requires_grad = True
-    # Implement the FGSM attack
+
+    # Hint: the inputs are used in two different forward passes,
+    # so you need to make sure those don't clash    
+    orig_imgs = inputs.clone().detach().requires_grad_(True)
     adv_imgs = inputs.clone().detach().requires_grad_(True)
     
     # Calculate the loss for the original image
-    preds = model(adv_imgs)
-    loss = criterion(preds, labels)
+    orig_preds = model(orig_imgs)
+    orig_loss = criterion(orig_preds, labels)
 
-    loss.backward()
+    orig_loss.backward(retain_graph=True)
 
-    adv_imgs = fgsm_attack(adv_imgs, adv_imgs.grad.data, epsilon)
+    # Implement the FGSM attack
+    adv_imgs = fgsm_attack(orig_imgs, orig_imgs.grad.data, epsilon)
     
     # Calculate the perturbation
     # Calculate the loss for the perturbed image
-    adv_preds = model(adv_imgs)
-    
+    adv_preds = model(adv_imgs.detach)
     adv_loss = criterion(adv_preds, labels)
     # adv_loss.backward()
     
     # Combine the two losses
-    combined_loss = (1 - alpha) * loss + alpha * adv_loss
-    # Hint: the inputs are used in two different forward passes,
-    # so you need to make sure those don't clash
-    
+    combined_loss = (1 - alpha)*adv_loss + alpha*orig_loss
+
     if return_preds:
         _, preds = torch.max(preds, 1)
         return combined_loss, preds
