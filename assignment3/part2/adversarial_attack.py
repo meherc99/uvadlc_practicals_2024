@@ -45,7 +45,6 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     preds = model(adv_imgs)
     loss = criterion(preds, labels)
 
-    # model.zero_grad()
     loss.backward()
 
     adv_imgs = fgsm_attack(adv_imgs, adv_imgs.grad.data, epsilon)
@@ -54,7 +53,7 @@ def fgsm_loss(model, criterion, inputs, labels, defense_args, return_preds = Tru
     # Calculate the loss for the perturbed image
     adv_preds = model(adv_imgs)
     
-    adv_loss = loss = criterion(adv_preds, labels)
+    adv_loss = criterion(adv_preds, labels)
     # adv_loss.backward()
     
     # Combine the two losses

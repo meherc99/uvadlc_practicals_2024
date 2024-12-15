@@ -42,11 +42,10 @@ class VAE(pl.LightningModule):
         """
         super().__init__()
         self.save_hyperparameters()
-        self.z_dim = z_dim
 
         self.encoder = CNNEncoder(z_dim=z_dim, num_filters=num_filters)
         self.decoder = CNNDecoder(z_dim=z_dim, num_filters=num_filters)
-        self.lr = lr
+        
 
     def forward(self, imgs):
         """
@@ -99,8 +98,14 @@ class VAE(pl.LightningModule):
         #######################
         # PUT YOUR CODE HERE  #
         ####################### 
-        x_samples = self.decoder(torch.randn(batch_size, self.z_dim).to(self.device))
-        x_samples = torch.argmax(x_samples, dim=1, keepdim=True)
+        output = self.decoder(torch.randn(batch_size, self.hparams.z_dim).to(self.device))
+        
+        probs = F.softmax(output, dim=1)
+        probs = probs.permute(0, 2, 3, 1).reshape(-1, probs.shape[1])
+        
+        samples = torch.multinomial(probs, 1).reshape(output.shape[0], output.shape[2], output.shape[3], 1)
+        x_samples = samples.permute(0, 3, 1, 2)
+        
         #######################
         # END OF YOUR CODE    #
         #######################
