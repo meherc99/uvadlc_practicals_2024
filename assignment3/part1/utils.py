@@ -122,7 +122,7 @@ def visualize_manifold(decoder, grid_size=20):
     # - Remember to apply a softmax after the decoder
     output = torch.softmax(output, dim=1)
     output = torch.argmax(output, dim=1, keepdim=True)
-    # output = output.float() / output.max()
+    output = output.float()
     
     # - You can use torchvision's function "make_grid" to combine the grid_size**2 images into a grid
     img_grid = make_grid(output, nrow=grid_size, normalize=True, value_range=(0, 1), pad_value=0.5)
